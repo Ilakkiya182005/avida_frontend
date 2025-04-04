@@ -1,3 +1,4 @@
+import "@fontsource/outfit";
 export default function Products() {
     return (
       <div className="w-full h-screen flex flex-col justify-center items-center bg-white text-green-900 p-10">

@@ -12,6 +12,9 @@ import DisabledDash from "./DisabledDash.jsx";
 import RegisterDisabled from "./RegisterDisabled.jsx";
 import ReadyMatch from "./ReadyMatch.jsx"
 import DisabledLogic from "./DisabledLogic.jsx";
+
+import "@fontsource/outfit";
+import TestReader from "./TextReader.jsx";
 function App() {
   return (
       <Routes>
@@ -28,6 +31,8 @@ function App() {
         <Route path="/register-exam" element={<RegisterDisabled/>}/>
         <Route path="/ready-to-match" element={<ReadyMatch/>}/>
         <Route path="/profile-view" element={<DisabledLogic/>}/>
+        <Route path="/test-reader" element={<TestReader/>}/>
+        
       </Routes>
     
   );

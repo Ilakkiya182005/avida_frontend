@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { UserCircle } from "lucide-react";
 
+import "@fontsource/outfit";
 const DisabledDash = () => {
   const navigate = useNavigate(); // Hook for navigation
 
   // Logout function
   const handleLogout = async () => {
     try {
-      const response = await fetch("http://localhost:5001/logout", {
+      const response = await fetch("https://avida-backend.onrender.com/logout", {
         method: "POST",
         credentials: "include",
       });
@@ -56,6 +57,13 @@ const DisabledDash = () => {
             >
               Exam Registration
             </button>
+          
+            <button
+             onClick={() => navigate('/test-reader')}
+             className="px-4 py-2 rounded-full backdrop-blur-md bg-white/20 hover:bg-white/30 transition"
+             >
+  Reading
+</button>
 
             {/* Logout Button */}
             <button
@@ -63,8 +71,8 @@ const DisabledDash = () => {
               className="px-4 py-2 rounded-full backdrop-blur-md bg-white/20 hover:bg-white/30 transition"
               aria-label="Logout"
             >
-              Logout
-            </button>
+              Logout</button>
+          
 
             {/* Profile Icon */}
             <UserCircle
@@ -100,14 +108,14 @@ const DisabledDash = () => {
       </main>
 
       {/* Image Section */}
-      <section className="flex justify-center mt-10 px-6">
+      {/* <section className="flex justify-center mt-10 px-6">
         <img
           src="/ScribeImage.png"
           alt="A volunteer helping a visually impaired student with an exam"
           className="w-3/4 rounded-lg shadow-2xl"
           role="img"
         />
-      </section>
+      </section> */}
     </div>
   );
 };

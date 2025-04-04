@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-
+import "@fontsource/outfit";
 const ScrollablePDFBackground = () => {
  
     const image = "/home.jpg"; // Path to your single image in the `public` folder

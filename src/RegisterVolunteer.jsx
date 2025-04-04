@@ -153,7 +153,7 @@ const handleSubmit = async (e) => {
   console.log(VolunteerData);
 
   try {
-    const response = await fetch("http://localhost:5001/register-volunteer", {
+    const response = await fetch("https://avida-backend.onrender.com/register-volunteer", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -296,7 +296,8 @@ const handleSubmit = async (e) => {
 
       <label className="font-medium text-gray-700">Choose Your Location</label>
       <MapContainer center={[20.5937, 78.9629]} zoom={5} className="h-64 w-full border rounded">
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <TileLayer url="https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png" />
+
         <MapClickHandler />
         {position && <Marker position={position} />}
       </MapContainer>
@@ -324,3 +325,7 @@ const handleSubmit = async (e) => {
 };
 
 export default RegisterVolunteer;
+
+
+ 
+

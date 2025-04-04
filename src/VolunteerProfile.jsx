@@ -1,169 +1,236 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import ChatComponent from "./ChatComponent";
 
 const VolunteerProfile = () => {
   const [volunteerDetails, setVolunteerDetails] = useState(null);
   const [requests, setRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [chatConnectionId, setChatConnectionId] = useState(null);
+  const [selectedReceiverId, setSelectedReceiverId] = useState(null);
+  const [showChat, setShowChat] = useState(false);
 
+  const userId = localStorage.getItem("userId");
+
+  // Fetch data
   useEffect(() => {
-    const fetchProfileAndRequests = async () => {
+    const fetchData = async () => {
       try {
-        // Fetch Volunteer Profile
-        const profileResponse = await fetch("http://localhost:5001/profile", {
-          method: "GET",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-        });
-
-        if (!profileResponse.ok) throw new Error("Failed to fetch profile details.");
-
-        const profileData = await profileResponse.json();
-        console.log("Profile Data:", profileData);
-        setVolunteerDetails(profileData);
-
-        // Fetch Connection Requests using volunteerUserId from profileData.userId
-        if (profileData.userId._id) {
-          const requestResponse = await fetch(`http://localhost:5001/requests/${profileData.userId._id}`, {
+        const [profileResponse, requestResponse, pendingResponse] = await Promise.all([
+          fetch("https://avida-backend.onrender.com/profile", {
             method: "GET",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
-          });
+          }),
+          fetch(`https://avida-backend.onrender.com/accepted-requests/${userId}`, {
+            method: "GET",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          }),
+          fetch(`https://avida-backend.onrender.com/requests/${userId}`, {
+            method: "GET",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+          })
+        ]);
 
-          if (!requestResponse.ok) throw new Error("Failed to fetch connection requests.");
+        const [profileData, requestData, pendingData] = await Promise.all([
+          profileResponse.json(),
+          requestResponse.json(),
+          pendingResponse.json()
+        ]);
 
-          const requestData = await requestResponse.json();
-          setRequests(requestData.pendingRequests || []);
-        }
+        setVolunteerDetails(profileData);
+        setRequests(requestData.acceptedRequests || []);
+        setPendingRequests(pendingData.pendingRequests || []);
       } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
+        console.error(err);
       }
     };
 
-    fetchProfileAndRequests();
-  }, []);
+    fetchData();
+  }, [userId]);
 
-  const handleRespondToRequest = async (requestId, status) => {
+  const handleAcceptRequest = async (requestId) => {
     try {
       const response = await fetch(`http://localhost:5001/respond/${requestId}`, {
-        method: "POST", // Correct method for updating request status
+        method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
+        body: JSON.stringify({ status: "accepted" }),
       });
 
-      if (!response.ok) throw new Error(`Failed to ${status} request.`);
-
-      alert(`Request ${status} successfully!`);
-
-      // Update UI by filtering out the handled request
-      setRequests((prevRequests) =>
-        prevRequests.map((req) =>
-          req._id === requestId ? { ...req, status } : req
-        )
-      );
+      if (!response.ok) throw new Error("Failed to accept request.");
+      setPendingRequests((prev) => prev.filter((req) => req._id !== requestId));
+      
+      // Refresh accepted requests
+      const updatedResponse = await fetch(`http://localhost:5001/accepted-requests/${userId}`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+      const updatedData = await updatedResponse.json();
+      setRequests(updatedData.acceptedRequests || []);
     } catch (err) {
-      alert(err.message);
+      console.error(err);
     }
   };
 
-  if (loading) {
-    return (
-      <div
-        className="flex items-center justify-center min-h-screen w-full"
-        style={{ background: "linear-gradient(135deg, #12062E 0%, #862D86 100%)" }}
-      >
-        <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const handleRejectRequest = async (requestId) => {
+    try {
+      const response = await fetch(`http://localhost:5001/respond/${requestId}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "rejected" }),
+      });
 
-  if (error) return <p className="text-center text-red-600 text-xl">{error}</p>;
+      if (!response.ok) throw new Error("Failed to reject request.");
+      setPendingRequests((prev) => prev.filter((req) => req._id !== requestId));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-6 bg-gray-100"
-    style={{ background: "linear-gradient(135deg, #12062E 0%, #862D86 100%)" }}>
-      {/* Volunteer Profile Section */}
-      <div className="max-w-lg w-full bg-white shadow-lg rounded-2xl p-8 mb-6">
-  <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">{volunteerDetails?.firstName}'s Profile</h2>
-  
-  <div className="text-lg space-y-4">
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Name:</span>
-      <span className="text-gray-900">{volunteerDetails?.firstName} {volunteerDetails?.lastName}</span>
-    </div>
+    <div 
+      className="min-h-screen p-8" 
+      style={{ background: "linear-gradient(135deg, #12062E 0%, #862D86 100%)" }}
+    >
+      <div className="max-w-xl mx-auto">
+        {showChat ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3 }}
+            className="space-y-4 px-14"
+          >
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowChat(false)}
+              className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg backdrop-blur-md border border-white/30 transition-all"
+            >
+              Back to Profile
+            </motion.button>
 
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Location:</span>
-      <span className="text-gray-900">{volunteerDetails?.city}</span>
-    </div>
-
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Email:</span>
-      <span className="text-gray-900">{volunteerDetails?.emailId}</span>
-    </div>
-
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Languages Known:</span>
-      <span className="text-gray-900">{volunteerDetails?.languages_known}</span>
-    </div>
-
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Qualification:</span>
-      <span className="text-gray-900">{volunteerDetails?.qualification}</span>
-    </div>
-
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Past Experience:</span>
-      <span className="text-gray-900">{volunteerDetails?.past_experience}</span>
-    </div>
-
-    <div className="flex justify-between border-b pb-2">
-      <span className="font-semibold text-gray-700">Available Dates:</span>
-      <span className="text-gray-900">
-        {volunteerDetails?.available_dates?.map(date => 
-          new Date(date).toISOString().split('T')[0].replace(/-/g, '/')
-        ).join(", ")}
-      </span>
-    </div>
-    <div className="flex justify-between">
-      <span className="font-semibold text-gray-700">Available Session:</span>
-      <span className="text-gray-900">{volunteerDetails?.available_session}</span>
-    </div>
-  </div>
-</div>
-
-      {/* Connection Requests Section */}
-      <div className="max-w-2xl w-full bg-white shadow-lg rounded-2xl p-6">
-        <h2 className="text-3xl font-bold text-center mb-4">Connection Requests</h2>
-        {requests.length > 0 ? (
-          requests.map((req) => (
-            <div key={req._id} className="border-b py-4 flex justify-between items-center">
-              <p>{req.disabledUserId.firstName} 
-                {/* - {req.disabledUserId.examName} */}
-                </p>
-              {req.status === "pending" ? (
-                <div className="space-x-2">
-                  <button onClick={() => handleRespondToRequest(req._id, "accepted")}
-                    className="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600">
-                    Accept
-                  </button>
-                  <button onClick={() => handleRespondToRequest(req._id, "rejected")}
-                    className="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600">
-                    Reject
-                  </button>
-                </div>
-              ) : req.status === "accepted" ? (
-                <span className="text-green-600 font-bold">Accepted ✅</span>
-              ) : (
-                <span className="text-red-600 font-bold">Declined ❌</span>
-              )}
-            </div>
-          ))
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              className="rounded-lg shadow-xl backdrop-blur-md bg-white/20 border border-white/30 p-6"
+            >
+              <ChatComponent 
+                connectionId={chatConnectionId} 
+                userId={userId} 
+                receiverId={selectedReceiverId} 
+              />
+            </motion.div>
+          </motion.div>
         ) : (
-          <p className="text-center text-gray-700 text-xl">No requests.</p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5 }}
+            className="space-y-8"
+          >
+            {/* Profile Section */}
+            <motion.div
+              whileHover={{ scale: 1.005 }}
+              className="rounded-lg shadow-xl backdrop-blur-md bg-white/20 border border-white/30 p-8"
+            >
+              {volunteerDetails && (
+                <div className="text-white">
+                  <h2 className="text-4xl font-bold text-center mb-8">{volunteerDetails.firstName}'s Profile</h2>
+                  <div className="space-y-6">
+                    <p className="text-xl px-14"><strong>Email:</strong> {volunteerDetails.emailId}</p>
+                    <p className="text-xl  px-14"><strong>Qualification:</strong> {volunteerDetails.qualification}</p>
+                    <p className="text-xl  px-14"><strong>Languages Known:</strong> {volunteerDetails.languages_known}</p>
+                    <p className="text-xl  px-14"><strong>City:</strong> {volunteerDetails.city}</p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Pending Requests Section */}
+            {pendingRequests.length > 0 && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="rounded-lg shadow-xl backdrop-blur-md bg-white/20 border border-white/30 p-6"
+              >
+                <h3 className="text-2xl font-bold text-white mb-6">Pending Requests</h3>
+                <div className="space-y-4 px-14">
+                  {pendingRequests.map((req) => (
+                    <motion.div
+                      key={req._id}
+                      whileHover={{ scale: 1.01 }}
+                      className="bg-white/10 rounded-lg p-4 flex justify-between items-center px-14"
+                    >
+                      <div>
+                        <p className="font-medium text-white">{req.disabledUserId.firstName}</p>
+                      </div>
+                      <div className="flex space-x-3">
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleAcceptRequest(req._id)}
+                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-all"
+                        >
+                          Accept
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleRejectRequest(req._id)}
+                          className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition-all"
+                        >
+                          Reject
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Accepted Requests Section */}
+            {requests.length > 0 && (
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="rounded-lg shadow-xl backdrop-blur-md bg-white/20 border border-white/30 p-6"
+              >
+                <h3 className="text-2xl font-bold text-white mb-6">Your Connections</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {requests.map((req) => (
+                    <motion.div
+                      key={req._id}
+                      whileHover={{ scale: 1.02 }}
+                      onClick={() => {
+                        setChatConnectionId(req._id);
+                        setSelectedReceiverId(req.disabledUserId._id);
+                        setShowChat(true);
+                      }}
+                      className="bg-white/10 rounded-lg p-4 cursor-pointer flex items-center space-x-4"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-purple-300 flex items-center justify-center">
+                        <span className="text-purple-800 font-bold text-xl">
+                          {req.disabledUserId.firstName.charAt(0)}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-white">{req.disabledUserId.firstName}</p>
+                        <p className="text-sm text-white/70">Click to chat</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
         )}
       </div>
     </div>
