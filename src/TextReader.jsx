@@ -1,8 +1,7 @@
-
 import { useState, useRef, useEffect } from "react";
 import axios from "axios";
 
-export default function OCRU() {
+export default function TextReader() {
   // State management
   const [file, setFile] = useState(null);
   const [fileName, setFileName] = useState("");
@@ -18,7 +17,8 @@ export default function OCRU() {
   const [voiceSettings, setVoiceSettings] = useState({
     rate: 1,
     pitch: 1,
-    voice: null
+    voice: null,
+    language: "en-US" // Default language
   });
   const [theme, setTheme] = useState("light");
   const [showThemeOptions, setShowThemeOptions] = useState(false);
@@ -29,9 +29,27 @@ export default function OCRU() {
   const speechRef = useRef(null);
   const themeButtonRef = useRef(null);
 
-  // Available voices
+  // Available voices and languages
   const [voices, setVoices] = useState([]);
   const [showVoiceOptions, setShowVoiceOptions] = useState(false);
+  const [showLanguageOptions, setShowLanguageOptions] = useState(false);
+
+  // Supported languages with labels and voice samples
+  const languages = [
+    { code: "en-US", name: "English (US)", voiceSample: "Hello, how are you?" },
+    { code: "ta-IN", name: "Tamil", voiceSample: "வணக்கம், எப்படி இருக்கிறீர்கள்?" },
+    { code: "en-GB", name: "English (UK)", voiceSample: "Hello, how are you?" },
+    { code: "es-ES", name: "Spanish", voiceSample: "Hola, ¿cómo estás?" },
+    { code: "fr-FR", name: "French", voiceSample: "Bonjour, comment ça va?" },
+    { code: "de-DE", name: "German", voiceSample: "Hallo, wie geht's?" },
+    { code: "it-IT", name: "Italian", voiceSample: "Ciao, come stai?" },
+    { code: "pt-BR", name: "Portuguese (BR)", voiceSample: "Olá, como vai?" },
+    { code: "ru-RU", name: "Russian", voiceSample: "Привет, как дела?" },
+    { code: "ja-JP", name: "Japanese", voiceSample: "こんにちは、元気ですか？" },
+    { code: "zh-CN", name: "Chinese (Mandarin)", voiceSample: "你好，你好吗？" },
+    { code: "ar-SA", name: "Arabic", voiceSample: "مرحبا، كيف حالك؟" },
+    { code: "hi-IN", name: "Hindi", voiceSample: "नमस्ते, आप कैसे हैं?" }
+  ];
 
   // Theme options
   const themes = [
@@ -135,10 +153,19 @@ export default function OCRU() {
       try {
         window.speechSynthesis.cancel();
         const speech = new SpeechSynthesisUtterance(contentToRead);
-        speech.lang = voiceSettings.voice?.lang || "en-US";
+        speech.lang = voiceSettings.language;
         speech.rate = voiceSettings.rate;
         speech.pitch = voiceSettings.pitch;
-        speech.voice = voiceSettings.voice;
+        
+        // Find the best voice for the selected language
+        const availableVoices = window.speechSynthesis.getVoices();
+        const preferredVoice = availableVoices.find(
+          v => v.lang === voiceSettings.language
+        ) || availableVoices.find(
+          v => v.lang.startsWith(voiceSettings.language.substring(0, 2))
+        ) || availableVoices[0];
+        
+        speech.voice = preferredVoice;
         
         speech.onstart = () => setIsSpeaking(true);
         speech.onend = () => setIsSpeaking(false);
@@ -167,6 +194,18 @@ export default function OCRU() {
   const handleVoiceChange = (voice) => {
     setVoiceSettings(prev => ({ ...prev, voice }));
     setShowVoiceOptions(false);
+  };
+
+  const handleLanguageChange = (languageCode) => {
+    setVoiceSettings(prev => ({ ...prev, language: languageCode }));
+    setShowLanguageOptions(false);
+    
+    // Reset voice when language changes to ensure compatibility
+    const availableVoices = window.speechSynthesis.getVoices();
+    const newVoice = availableVoices.find(v => v.lang === languageCode) || 
+                     availableVoices.find(v => v.lang.startsWith(languageCode.substring(0, 2))) || 
+                     null;
+    setVoiceSettings(prev => ({ ...prev, voice: newVoice }));
   };
 
   const handleRateChange = (e) => {
@@ -230,10 +269,18 @@ export default function OCRU() {
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis?.getVoices() || [];
       setVoices(availableVoices);
+      
+      // Set initial voice based on current language if not set
       if (availableVoices.length > 0 && !voiceSettings.voice) {
+        const preferredVoice = availableVoices.find(
+          v => v.lang === voiceSettings.language
+        ) || availableVoices.find(
+          v => v.lang.startsWith(voiceSettings.language.substring(0, 2))
+        ) || availableVoices.find(v => v.default) || availableVoices[0];
+        
         setVoiceSettings(prev => ({
           ...prev,
-          voice: availableVoices.find(v => v.default) || availableVoices[0]
+          voice: preferredVoice
         }));
       }
     };
@@ -243,7 +290,7 @@ export default function OCRU() {
     return () => {
       window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices);
     };
-  }, []);
+  }, [voiceSettings.language]);
 
   useEffect(() => {
     return () => {
@@ -254,6 +301,9 @@ export default function OCRU() {
   }, []);
 
   const themeClasses = getThemeClasses();
+
+  // Get current language name
+  const currentLanguage = languages.find(lang => lang.code === voiceSettings.language) || languages[0];
 
   return (
     <div className={`flex flex-col items-center p-4 ${themeClasses.bg} ${themeClasses.text} min-h-screen font-sans`}>
@@ -266,7 +316,7 @@ export default function OCRU() {
               className={`p-2 rounded-lg ${themeClasses.buttonSecondary} transition-colors flex items-center`}
             >
               <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M5 17h.01"></path>
               </svg>
               <span>Theme</span>
             </button>
@@ -298,9 +348,7 @@ export default function OCRU() {
           {/* Header */}
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r"
-              
-              >
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-cyan-500">
                 Smart Text Extractor
               </span>
             </h1>
@@ -340,7 +388,7 @@ export default function OCRU() {
                   ) : (
                     <>
                       <div className="p-4 bg-blue-100 rounded-full mb-4">
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ color: "linear-gradient(135deg, #12062E 0%, #862D86 100%)" }}>
+                        <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                         </svg>
                       </div>
@@ -368,7 +416,6 @@ export default function OCRU() {
               <div className="flex flex-col sm:flex-row gap-4 mb-6">
                 <button
                   onClick={handleUpload}
-                  style={{ background: "linear-gradient(135deg, #12062E 0%, #862D86 100%)" }}
                   disabled={loading || !file}
                   className={`relative overflow-hidden px-6 py-3 rounded-lg font-medium text-white shadow-md transition-all duration-300 flex-1 ${
                     loading || !file ? "bg-gray-400 cursor-not-allowed" : `${themeClasses.buttonPrimary} hover:shadow-lg`
@@ -436,34 +483,72 @@ export default function OCRU() {
               <h3 className="text-lg font-semibold mb-4">Voice Settings</h3>
               
               <div className="space-y-4">
+                {/* Language Selection */}
+                <div>
+                  <label className={`block text-sm font-medium ${themeClasses.textMuted} mb-1`}>Language</label>
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowLanguageOptions(!showLanguageOptions)}
+                      className={`w-full flex justify-between items-center px-4 py-2 ${themeClasses.card} border ${themeClasses.border} rounded-md shadow-sm text-sm ${themeClasses.text} hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                    >
+                      <span>{currentLanguage.name}</span>
+                      <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    {showLanguageOptions && (
+                      <div className={`absolute z-10 mt-1 w-full ${themeClasses.card} shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border ${themeClasses.border}`}>
+                        {languages.map((lang) => (
+                          <button
+                            key={lang.code}
+                            onClick={() => handleLanguageChange(lang.code)}
+                            className={`block w-full text-left px-4 py-2 text-sm ${
+                              lang.code === voiceSettings.language 
+                                ? "bg-blue-100 text-blue-800" 
+                                : `${themeClasses.text} hover:bg-gray-100`
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span>{lang.name}</span>
+                              <span className={`text-xs ${themeClasses.textMuted}`}>{lang.voiceSample}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Voice Selection */}
                 <div>
                   <label className={`block text-sm font-medium ${themeClasses.textMuted} mb-1`}>Voice</label>
                   <div className="relative">
                     <button
                       onClick={() => setShowVoiceOptions(!showVoiceOptions)}
-                      className={`w-full flex justify-between items-center px-4 py-2 ${themeClasses.card} border ${themeClasses.border} rounded-md shadow-sm text-sm ${themeClasses.text} hover:bg-opacity-80 focus:outline-none focus:purple-2 focus:purpl-500`}
+                      className={`w-full flex justify-between items-center px-4 py-2 ${themeClasses.card} border ${themeClasses.border} rounded-md shadow-sm text-sm ${themeClasses.text} hover:bg-opacity-80 focus:outline-none focus:ring-2 focus:ring-blue-500`}
                     >
-                      <span>{voiceSettings.voice?.name || "Select a voice"}</span>
+                      <span>{voiceSettings.voice?.name || "Default voice"}</span>
                       <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                       </svg>
                     </button>
                     {showVoiceOptions && (
                       <div className={`absolute z-10 mt-1 w-full ${themeClasses.card} shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none sm:text-sm border ${themeClasses.border}`}>
-                        {voices.map((voice) => (
-                          <button
-                            key={voice.voiceURI}
-                            onClick={() => handleVoiceChange(voice)}
-                            className={`block w-full text-left px-4 py-2 text-sm ${
-                              voice.voiceURI === voiceSettings.voice?.voiceURI 
-                                ? "bg-blue-100 text-blue-800" 
-                                : `${themeClasses.text} hover:bg-gray-100`
-                            }`}
-                          >
-                            {voice.name} ({voice.lang})
-                          </button>
-                        ))}
+                        {voices
+                          .filter(voice => voice.lang.startsWith(voiceSettings.language.substring(0, 2)))
+                          .map((voice) => (
+                            <button
+                              key={voice.voiceURI}
+                              onClick={() => handleVoiceChange(voice)}
+                              className={`block w-full text-left px-4 py-2 text-sm ${
+                                voice.voiceURI === voiceSettings.voice?.voiceURI 
+                                  ? "bg-blue-100 text-blue-800" 
+                                  : `${themeClasses.text} hover:bg-gray-100`
+                              }`}
+                            >
+                              {voice.name} ({voice.lang})
+                            </button>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -630,7 +715,7 @@ export default function OCRU() {
 
         {/* Footer */}
         <div className={`text-center mt-8 ${themeClasses.textMuted} text-sm`}>
-          <p>Powered by advanced OCR</p>
+          <p>Powered by advanced OCR and NLP technology</p>
         </div>
       </div>
     </div>

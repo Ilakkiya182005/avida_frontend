@@ -19,7 +19,7 @@ const RegisterVolunteer = () => {
   const [selectedDates, setSelectedDates] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    userId : localStorage.getItem("userId"),
+    userId : "",
     state: "",
     city: "",
     languages_known: "",
@@ -33,6 +33,10 @@ const RegisterVolunteer = () => {
     location_coordinate_latitude: "12.34567",
     location_coordinate_longitude: "34.345667",
   });
+  useEffect(() => {
+    const storedUserId = localStorage.getItem("userId");
+    setFormData((prevData) => ({ ...prevData, userId: storedUserId }));
+  }, []);
 
   const fetchStates = async () => {
     const response = await fetch("https://api.countrystatecity.in/v1/countries/IN/states", {

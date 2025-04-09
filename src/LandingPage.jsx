@@ -47,17 +47,17 @@ export default function LandingPage() {
       About
     </button>
     <button
-      onClick={() => navigate("/services")}
+       onClick={() => window.location.href = "https://dancing-choux-5476f1.netlify.app/"}
       className="text-white text-lg px-4 py-2 rounded-full font-bold hover:bg-[#862D86]"
     >
-      Services
+      Incluboost
     </button>
     <button
-      onClick={() => navigate("/products")}
-      className="text-white text-lg px-4 py-2 rounded-full font-bold hover:bg-[#862D86]"
-    >
-      Products
-    </button>
+  onClick={() => window.location.href = "https://jazzy-bubblegum-f8f20d.netlify.app/"}
+  className="text-white text-lg px-4 py-2 rounded-full font-bold hover:bg-[#862D86]"
+>
+  Products
+</button>
   </div>
 
   {/* Always show Sign Up/Login button */}

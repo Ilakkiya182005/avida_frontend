@@ -18,6 +18,7 @@ const ChatComponent = ({ userId, connectionId, receiverId, isDarkMode = false })
           method: "GET",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
+          
         });
 
         if (!response.ok) throw new Error("Failed to fetch messages.");
